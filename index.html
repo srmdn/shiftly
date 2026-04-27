@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shiftly</title>
+  <!-- Prevent flash of wrong theme -->
+  <script>
+    (function () {
+      const saved = localStorage.getItem('shiftly_theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (saved === 'dark' || (!saved && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' }</script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body class="bg-stone-50 dark:bg-stone-950 min-h-screen font-sans antialiased transition-colors duration-200">
+
+  <div class="max-w-lg mx-auto px-4 py-10">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-2xl font-bold text-stone-800 dark:text-stone-100 tracking-tight">Shiftly</h1>
+        <p class="text-stone-400 dark:text-stone-500 text-xs mt-0.5">Work schedule manager</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- Said pill -->
+        <div class="flex items-center gap-1.5 bg-violet-50 dark:bg-violet-950/60 border border-violet-100 dark:border-violet-900 rounded-xl px-3 py-1.5">
+          <span class="w-2 h-2 rounded-full bg-violet-400 dark:bg-violet-500"></span>
+          <span class="text-violet-700 dark:text-violet-300 text-sm font-semibold">Said: <span id="count-a">0</span></span>
+        </div>
+        <!-- Aziz pill -->
+        <div class="flex items-center gap-1.5 bg-orange-50 dark:bg-orange-950/60 border border-orange-100 dark:border-orange-900 rounded-xl px-3 py-1.5">
+          <span class="w-2 h-2 rounded-full bg-orange-400 dark:bg-orange-500"></span>
+          <span class="text-orange-700 dark:text-orange-300 text-sm font-semibold">Aziz: <span id="count-b">0</span></span>
+        </div>
+        <!-- Theme toggle -->
+        <button onclick="toggleTheme()"
+          class="w-9 h-9 flex items-center justify-center rounded-xl text-stone-400 dark:text-stone-500 hover:bg-stone-200 dark:hover:bg-stone-800 transition ml-1">
+          <!-- Moon: show in light mode -->
+          <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4">
+            <path fill-rule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" clip-rule="evenodd" />
+          </svg>
+          <!-- Sun: show in dark mode -->
+          <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4 hidden">
+            <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Month navigation -->
+    <div class="flex items-center justify-between mb-3">
+      <button onclick="changeMonth(-1)"
+        class="w-9 h-9 flex items-center justify-center rounded-xl text-stone-400 dark:text-stone-500 hover:bg-stone-200 dark:hover:bg-stone-800 hover:text-stone-700 dark:hover:text-stone-300 transition text-lg">
+        ‹
+      </button>
+      <h2 id="month-label" class="text-base font-semibold text-stone-700 dark:text-stone-300 tabular-nums"></h2>
+      <button onclick="changeMonth(1)"
+        class="w-9 h-9 flex items-center justify-center rounded-xl text-stone-400 dark:text-stone-500 hover:bg-stone-200 dark:hover:bg-stone-800 hover:text-stone-700 dark:hover:text-stone-300 transition text-lg">
+        ›
+      </button>
+    </div>
+
+    <!-- Hint -->
+    <p id="select-hint" class="text-center text-xs text-stone-400 dark:text-stone-600 mb-2">
+      Shift+click to select multiple dates
+    </p>
+
+    <!-- Day headers -->
+    <div class="grid grid-cols-7 gap-1 mb-1">
+      <div class="text-center text-xs text-stone-400 dark:text-stone-600 font-medium py-1">Sun</div>
+      <div class="text-center text-xs text-stone-400 dark:text-stone-600 font-medium py-1">Mon</div>
+      <div class="text-center text-xs text-stone-400 dark:text-stone-600 font-medium py-1">Tue</div>
+      <div class="text-center text-xs text-stone-400 dark:text-stone-600 font-medium py-1">Wed</div>
+      <div class="text-center text-xs text-stone-400 dark:text-stone-600 font-medium py-1">Thu</div>
+      <div class="text-center text-xs text-stone-400 dark:text-stone-600 font-medium py-1">Fri</div>
+      <div class="text-center text-xs text-stone-400 dark:text-stone-600 font-medium py-1">Sat</div>
+    </div>
+
+    <!-- Calendar grid -->
+    <div id="calendar-grid" class="grid grid-cols-7 gap-1"></div>
+
+  </div>
+
+  <!-- Floating bulk action bar -->
+  <div id="bulk-bar"
+    class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl shadow-xl dark:shadow-stone-950 px-4 py-3">
+    <span id="bulk-count" class="text-sm font-medium text-stone-500 dark:text-stone-400 mr-1"></span>
+    <button onclick="bulkAssign('A')"
+      class="px-4 py-2 rounded-xl bg-violet-400 hover:bg-violet-500 dark:bg-violet-500 dark:hover:bg-violet-600 text-white font-bold text-sm transition shadow-sm shadow-violet-200 dark:shadow-violet-900">
+      Said
+    </button>
+    <button onclick="bulkAssign('B')"
+      class="px-4 py-2 rounded-xl bg-orange-400 hover:bg-orange-500 dark:bg-orange-500 dark:hover:bg-orange-600 text-white font-bold text-sm transition shadow-sm shadow-orange-200 dark:shadow-orange-900">
+      Aziz
+    </button>
+    <button onclick="bulkClear()"
+      class="px-4 py-2 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 text-sm hover:bg-stone-50 dark:hover:bg-stone-800 transition">
+      Remove
+    </button>
+    <button onclick="exitMultiSelect()"
+      class="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 dark:text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800 transition text-base ml-1">
+      ✕
+    </button>
+  </div>
+
+  <!-- Single-date modal -->
+  <div id="modal"
+    class="hidden fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+    onclick="handleOverlayClick(event)">
+    <div class="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl shadow-2xl dark:shadow-stone-950 w-full max-w-xs p-6">
+      <p class="text-center text-stone-400 dark:text-stone-500 text-xs uppercase tracking-widest mb-1">Assign shift</p>
+      <h3 id="modal-date-label" class="text-center text-lg font-bold text-stone-800 dark:text-stone-100 mb-6"></h3>
+      <div class="flex gap-3 mb-3">
+        <button onclick="assign('A')"
+          class="flex-1 py-4 rounded-xl bg-violet-400 hover:bg-violet-500 dark:bg-violet-500 dark:hover:bg-violet-600 active:bg-violet-600 text-white font-extrabold text-xl transition shadow-sm shadow-violet-200 dark:shadow-violet-900">
+          Said
+        </button>
+        <button onclick="assign('B')"
+          class="flex-1 py-4 rounded-xl bg-orange-400 hover:bg-orange-500 dark:bg-orange-500 dark:hover:bg-orange-600 active:bg-orange-600 text-white font-extrabold text-xl transition shadow-sm shadow-orange-200 dark:shadow-orange-900">
+          Aziz
+        </button>
+      </div>
+      <div class="mb-3">
+        <input id="modal-note" type="text" maxlength="80" placeholder="Add a note… (optional)"
+          class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-200 dark:focus:ring-violet-900 placeholder:text-stone-300 dark:placeholder:text-stone-600 transition" />
+      </div>
+      <div class="flex gap-2">
+        <button id="clear-btn" onclick="clearAssignment()"
+          class="flex-1 py-2 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 text-sm hover:bg-stone-50 dark:hover:bg-stone-800 transition">
+          Remove
+        </button>
+        <button onclick="closeModal()"
+          class="flex-1 py-2 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 text-sm hover:bg-stone-50 dark:hover:bg-stone-800 transition">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'shiftly_data';
+    const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const NAMES = { A: 'Said', B: 'Aziz' };
+
+    let currentYear, currentMonth;
+    let singleSelectedDate = null;
+
+    // Multi-select state
+    let multiMode = false;
+    let multiDates = new Set();
+    let anchorDay = null;
+
+    // ─── Theme ────────────────────────────────────────────────────────────────
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('shiftly_theme', isDark ? 'dark' : 'light');
+      syncThemeIcons(isDark);
+    }
+
+    function syncThemeIcons(isDark) {
+      document.getElementById('icon-moon').classList.toggle('hidden', isDark);
+      document.getElementById('icon-sun').classList.toggle('hidden', !isDark);
+    }
+
+    // ─── Storage ──────────────────────────────────────────────────────────────
+
+    function loadData() {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    }
+
+    function saveData(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function toISO(year, month, day) {
+      return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    // Supports legacy string values ("A"/"B") and object values ({ person, note })
+    function getEntry(raw) {
+      if (!raw) return { person: null, note: '' };
+      if (typeof raw === 'string') return { person: raw, note: '' };
+      return { person: raw.person || null, note: raw.note || '' };
+    }
+
+    function buildEntry(person, note) {
+      return note.trim() ? { person, note: note.trim() } : person;
+    }
+
+    // ─── Render ───────────────────────────────────────────────────────────────
+
+    function renderCalendar() {
+      const data = loadData();
+      document.getElementById('month-label').textContent = `${MONTH_NAMES[currentMonth]} ${currentYear}`;
+
+      const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const today = new Date();
+      const isCurrentMonth = today.getFullYear() === currentYear && today.getMonth() === currentMonth;
+
+      let html = '';
+
+      for (let i = 0; i < firstDayOfWeek; i++) {
+        html += `<div></div>`;
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const iso = toISO(currentYear, currentMonth, d);
+        const { person, note } = getEntry(data[iso]);
+        const isToday = isCurrentMonth && today.getDate() === d;
+        const isSelected = multiDates.has(iso);
+        const hasNote = note.length > 0;
+
+        let bg, inner;
+
+        if (person === 'A') {
+          bg = 'bg-violet-400 hover:bg-violet-500 dark:bg-violet-500 dark:hover:bg-violet-600 text-white shadow-sm shadow-violet-200 dark:shadow-violet-950';
+          inner = `<span class="text-xs font-bold leading-none">${d}</span><span class="text-white/75 text-[10px] font-semibold leading-none">${NAMES.A}</span>`;
+        } else if (person === 'B') {
+          bg = 'bg-orange-400 hover:bg-orange-500 dark:bg-orange-500 dark:hover:bg-orange-600 text-white shadow-sm shadow-orange-200 dark:shadow-orange-950';
+          inner = `<span class="text-xs font-bold leading-none">${d}</span><span class="text-white/75 text-[10px] font-semibold leading-none">${NAMES.B}</span>`;
+        } else if (isToday) {
+          bg = 'bg-stone-800 hover:bg-stone-700 dark:bg-stone-200 dark:hover:bg-stone-300 text-white dark:text-stone-900';
+          inner = `<span class="text-xs font-bold">${d}</span>`;
+        } else {
+          bg = 'bg-white hover:bg-stone-50 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 border border-stone-200 dark:border-stone-700';
+          inner = `<span class="text-xs font-medium">${d}</span>`;
+        }
+
+        const ring = isSelected ? 'ring-2 ring-offset-1 ring-stone-700 dark:ring-stone-300' : '';
+
+        const noteDot = hasNote
+          ? `<span class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${person ? 'bg-white/60' : 'bg-stone-400 dark:bg-stone-500'}"></span>`
+          : '';
+
+        html += `
+          <div class="relative aspect-square flex flex-col items-center justify-center gap-0.5 rounded-xl cursor-pointer transition select-none ${bg} ${ring}"
+            onclick="handleDayClick(event, '${iso}', ${d})">
+            ${inner}
+            ${noteDot}
+          </div>`;
+      }
+
+      document.getElementById('calendar-grid').innerHTML = html;
+      updateSummary(data);
+      updateBulkBar();
+    }
+
+    function updateSummary(data) {
+      data = data || loadData();
+      const prefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-`;
+      let a = 0, b = 0;
+      for (const [key, raw] of Object.entries(data)) {
+        if (!key.startsWith(prefix)) continue;
+        const { person } = getEntry(raw);
+        if (person === 'A') a++;
+        if (person === 'B') b++;
+      }
+      document.getElementById('count-a').textContent = a;
+      document.getElementById('count-b').textContent = b;
+    }
+
+    function updateBulkBar() {
+      const bar = document.getElementById('bulk-bar');
+      const hint = document.getElementById('select-hint');
+      if (multiMode && multiDates.size > 0) {
+        const n = multiDates.size;
+        document.getElementById('bulk-count').textContent = `${n} date${n > 1 ? 's' : ''}`;
+        bar.classList.remove('hidden');
+        hint.textContent = 'Click dates to toggle · Shift+click to extend range · Esc to cancel';
+      } else {
+        bar.classList.add('hidden');
+        hint.textContent = 'Shift+click to select multiple dates';
+      }
+    }
+
+    // ─── Click handler ────────────────────────────────────────────────────────
+
+    function handleDayClick(e, iso, day) {
+      if (e.shiftKey) {
+        e.preventDefault();
+        if (!multiMode) {
+          multiMode = true;
+          anchorDay = day;
+          multiDates.add(iso);
+        } else {
+          const start = Math.min(anchorDay, day);
+          const end   = Math.max(anchorDay, day);
+          for (let d = start; d <= end; d++) {
+            multiDates.add(toISO(currentYear, currentMonth, d));
+          }
+          anchorDay = day;
+        }
+        renderCalendar();
+        return;
+      }
+
+      if (multiMode) {
+        if (multiDates.has(iso)) {
+          multiDates.delete(iso);
+          if (multiDates.size === 0) { multiMode = false; anchorDay = null; }
+        } else {
+          multiDates.add(iso);
+          anchorDay = day;
+        }
+        renderCalendar();
+        return;
+      }
+
+      openModal(iso, day);
+    }
+
+    // ─── Single-date modal ────────────────────────────────────────────────────
+
+    function openModal(iso, day) {
+      singleSelectedDate = iso;
+      document.getElementById('modal-date-label').textContent =
+        `${MONTH_SHORT[currentMonth]} ${day}, ${currentYear}`;
+      const data = loadData();
+      const { person, note } = getEntry(data[iso]);
+      document.getElementById('modal-note').value = note;
+      document.getElementById('clear-btn').classList.toggle('hidden', !person);
+      document.getElementById('modal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('modal-note').focus(), 50);
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.add('hidden');
+      document.getElementById('modal-note').value = '';
+      singleSelectedDate = null;
+    }
+
+    function handleOverlayClick(e) {
+      if (e.target === document.getElementById('modal')) closeModal();
+    }
+
+    function assign(person) {
+      if (!singleSelectedDate) return;
+      const note = document.getElementById('modal-note').value;
+      const data = loadData();
+      data[singleSelectedDate] = buildEntry(person, note);
+      saveData(data);
+      closeModal();
+      renderCalendar();
+    }
+
+    function clearAssignment() {
+      if (!singleSelectedDate) return;
+      const data = loadData();
+      delete data[singleSelectedDate];
+      saveData(data);
+      closeModal();
+      renderCalendar();
+    }
+
+    // ─── Bulk actions ─────────────────────────────────────────────────────────
+
+    function bulkAssign(person) {
+      if (multiDates.size === 0) return;
+      const data = loadData();
+      for (const iso of multiDates) data[iso] = person;
+      saveData(data);
+      exitMultiSelect();
+    }
+
+    function bulkClear() {
+      if (multiDates.size === 0) return;
+      const data = loadData();
+      for (const iso of multiDates) delete data[iso];
+      saveData(data);
+      exitMultiSelect();
+    }
+
+    function exitMultiSelect() {
+      multiMode = false;
+      multiDates.clear();
+      anchorDay = null;
+      renderCalendar();
+    }
+
+    // ─── Month nav ────────────────────────────────────────────────────────────
+
+    function changeMonth(delta) {
+      multiMode = false;
+      multiDates.clear();
+      anchorDay = null;
+      currentMonth += delta;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      if (currentMonth < 0)  { currentMonth = 11; currentYear--; }
+      renderCalendar();
+    }
+
+    // ─── Keyboard ─────────────────────────────────────────────────────────────
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        if (!document.getElementById('modal').classList.contains('hidden')) {
+          closeModal();
+        } else if (multiMode) {
+          exitMultiSelect();
+        }
+      }
+    });
+
+    // ─── Init ─────────────────────────────────────────────────────────────────
+
+    const now = new Date();
+    currentYear = now.getFullYear();
+    currentMonth = now.getMonth();
+
+    // Sync theme icon on load
+    syncThemeIcons(document.documentElement.classList.contains('dark'));
+
+    renderCalendar();
+  </script>
+
+</body>
+</html>
