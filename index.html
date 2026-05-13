@@ -95,6 +95,25 @@
       </button>
     </div>
 
+    <!-- Balance -->
+    <p id="balance-text" class="text-center text-xs text-stone-400 dark:text-stone-500 mt-2"></p>
+
+    <!-- Actions -->
+    <div class="flex items-center justify-center gap-4 mt-4">
+      <button onclick="exportMonth()"
+        class="text-xs font-medium text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-400 transition">
+        Export
+      </button>
+      <button onclick="jumpToToday()"
+        class="text-xs font-medium text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-400 transition">
+        Today
+      </button>
+      <button onclick="clearMonth()"
+        class="text-xs font-medium text-red-400 dark:text-red-500 hover:text-red-600 dark:hover:text-red-400 transition">
+        Clear month
+      </button>
+    </div>
+
     <!-- Notes list -->
     <div id="notes-section" class="mt-5 hidden">
       <div class="flex items-center gap-2 mb-3">
@@ -284,13 +303,14 @@
         const hasNote = note.length > 0;
 
         let bg, inner;
+        const names = getNames();
 
         if (person === 'A') {
           bg = 'bg-violet-400 hover:bg-violet-500 dark:bg-violet-500 dark:hover:bg-violet-600 text-white shadow-sm shadow-violet-200 dark:shadow-violet-950';
-          inner = `<span class="text-xs font-bold leading-none">${d}</span><span class="text-white/75 text-[10px] font-semibold leading-none">${getNames().A}</span>`;
+          inner = `<span class="text-xs font-bold leading-none">${d}</span><span class="text-white/75 text-[10px] font-semibold leading-none">${names.A}</span>`;
         } else if (person === 'B') {
           bg = 'bg-orange-400 hover:bg-orange-500 dark:bg-orange-500 dark:hover:bg-orange-600 text-white shadow-sm shadow-orange-200 dark:shadow-orange-950';
-          inner = `<span class="text-xs font-bold leading-none">${d}</span><span class="text-white/75 text-[10px] font-semibold leading-none">${getNames().B}</span>`;
+          inner = `<span class="text-xs font-bold leading-none">${d}</span><span class="text-white/75 text-[10px] font-semibold leading-none">${names.B}</span>`;
         } else if (isToday) {
           bg = 'bg-stone-800 hover:bg-stone-700 dark:bg-stone-200 dark:hover:bg-stone-300 text-white dark:text-stone-900';
           inner = `<span class="text-xs font-bold">${d}</span>`;
@@ -298,6 +318,8 @@
           bg = 'bg-white hover:bg-stone-50 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-400 border border-stone-200 dark:border-stone-700';
           inner = `<span class="text-xs font-medium">${d}</span>`;
         }
+
+        const todayBadge = isToday ? '<span class="absolute top-0.5 right-0.5 text-[8px] leading-none opacity-60">★</span>' : '';
 
         const ring = isSelected ? 'ring-2 ring-offset-1 ring-stone-700 dark:ring-stone-300' : '';
 
@@ -310,6 +332,7 @@
             onclick="handleDayClick(event, '${iso}', ${d})">
             ${inner}
             ${noteDot}
+            ${todayBadge}
           </div>`;
       }
 
@@ -329,10 +352,17 @@
         if (person === 'A') a++;
         if (person === 'B') b++;
       }
-      document.getElementById('name-label-a').textContent = getNames().A;
-      document.getElementById('name-label-b').textContent = getNames().B;
+      const names = getNames();
+      document.getElementById('name-label-a').textContent = names.A;
+      document.getElementById('name-label-b').textContent = names.B;
       document.getElementById('count-a').textContent = a;
       document.getElementById('count-b').textContent = b;
+
+      const diff = a - b;
+      const bal = document.getElementById('balance-text');
+      if (diff > 0) bal.textContent = `+${diff}: ${names.A}`;
+      else if (diff < 0) bal.textContent = `+${Math.abs(diff)}: ${names.B}`;
+      else bal.textContent = `${names.A} & ${names.B} Equal`;
     }
 
     function updateNotes() {
@@ -506,6 +536,45 @@
       renderCalendar();
     }
 
+    // ─── Actions ───────────────────────────────────────────────────────────────
+
+    function exportMonth() {
+      const data = loadData();
+      const prefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-`;
+      const names = getNames();
+      let a = 0, b = 0;
+      const lines = [`${MONTH_NAMES[currentMonth]} ${currentYear}`];
+
+      const days = Object.keys(data).filter(k => k.startsWith(prefix)).sort();
+      for (const iso of days) {
+        const { person, note } = getEntry(data[iso]);
+        const day = parseInt(iso.slice(-2), 10);
+        if (person === 'A') { a++; lines.push(`  ${day}  ${names.A}` + (note ? ` — ${note}` : '')); }
+        else if (person === 'B') { b++; lines.push(`  ${day}  ${names.B}` + (note ? ` — ${note}` : '')); }
+      }
+
+      lines.push(`\n${names.A}: ${a}  ${names.B}: ${b}`);
+      navigator.clipboard.writeText(lines.join('\n'));
+    }
+
+    function jumpToToday() {
+      const now = new Date();
+      currentYear = now.getFullYear();
+      currentMonth = now.getMonth();
+      renderCalendar();
+    }
+
+    function clearMonth() {
+      const data = loadData();
+      const prefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-`;
+      const keys = Object.keys(data).filter(k => k.startsWith(prefix));
+      if (keys.length === 0) return;
+      if (!confirm(`Remove all ${keys.length} assignments for ${MONTH_NAMES[currentMonth]} ${currentYear}?`)) return;
+      for (const k of keys) delete data[k];
+      saveData(data);
+      renderCalendar();
+    }
+
     // ─── Settings ─────────────────────────────────────────────────────────────
 
     function openSettings() {
@@ -568,6 +637,23 @@
     syncThemeIcons(document.documentElement.classList.contains('dark'));
 
     renderCalendar();
+
+    // Swipe
+    (function() {
+      let sx = 0, sy = 0;
+      const grid = document.getElementById('calendar-grid');
+      grid.addEventListener('touchstart', e => {
+        sx = e.touches[0].clientX;
+        sy = e.touches[0].clientY;
+      }, { passive: true });
+      grid.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - sx;
+        const dy = e.changedTouches[0].clientY - sy;
+        if (Math.abs(dx) > 40 && Math.abs(dy) < 30) {
+          changeMonth(dx < 0 ? 1 : -1);
+        }
+      }, { passive: true });
+    })();
   </script>
 
 </body>
