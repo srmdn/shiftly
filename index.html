@@ -27,7 +27,7 @@
     <div class="flex items-center justify-between mb-8">
       <div>
         <h1 class="text-2xl font-bold text-stone-800 dark:text-stone-100 tracking-tight">Shiftly</h1>
-        <p class="text-stone-400 dark:text-stone-500 text-xs mt-0.5">Work schedule manager</p>
+        <button id="schedule-subtitle" onclick="openSettings()" class="text-stone-400 dark:text-stone-500 text-xs mt-0.5 hover:text-stone-600 dark:hover:text-stone-300 transition">Manual schedule</button>
       </div>
       <div class="flex items-center gap-2">
         <!-- Theme toggle -->
@@ -44,6 +44,8 @@
         </button>
       </div>
     </div>
+
+    <div id="current-status" class="hidden mb-6 rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-4"></div>
 
     <!-- Month navigation -->
     <div class="flex items-center justify-between mb-3">
@@ -63,6 +65,8 @@
       Shift+click to select multiple dates
     </p>
 
+    <div id="people-legend" class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mb-3"></div>
+
     <!-- Day headers -->
     <div class="grid grid-cols-7 gap-1 mb-1">
       <div class="text-center text-xs text-stone-400 dark:text-stone-600 font-medium py-1">Sun</div>
@@ -79,14 +83,7 @@
 
     <!-- Summary bar -->
     <div class="flex items-center justify-center gap-3 mt-6">
-      <div class="flex items-center gap-1.5 bg-violet-50 dark:bg-violet-950/60 border border-violet-100 dark:border-violet-900 rounded-xl px-3 py-1.5">
-        <span class="w-2 h-2 rounded-full bg-violet-400 dark:bg-violet-500"></span>
-        <span class="text-violet-700 dark:text-violet-300 text-sm font-semibold"><span id="name-label-a">1</span>: <span id="count-a">0</span></span>
-      </div>
-      <div class="flex items-center gap-1.5 bg-orange-50 dark:bg-orange-950/60 border border-orange-100 dark:border-orange-900 rounded-xl px-3 py-1.5">
-        <span class="w-2 h-2 rounded-full bg-orange-400 dark:bg-orange-500"></span>
-        <span class="text-orange-700 dark:text-orange-300 text-sm font-semibold"><span id="name-label-b">2</span>: <span id="count-b">0</span></span>
-      </div>
+      <div id="summary-list" class="flex flex-wrap items-center justify-center gap-2"></div>
       <button onclick="openSettings()"
         class="w-9 h-9 flex items-center justify-center rounded-xl text-stone-400 dark:text-stone-500 hover:bg-stone-200 dark:hover:bg-stone-800 transition">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4">
@@ -100,6 +97,10 @@
 
     <!-- Actions -->
     <div class="flex items-center justify-center gap-4 mt-4">
+      <button id="add-exception-action" onclick="openExceptionModalForCurrentView()"
+        class="hidden text-xs font-semibold text-stone-700 dark:text-stone-200 bg-stone-200 dark:bg-stone-800 rounded-lg px-3 py-2 hover:bg-stone-300 dark:hover:bg-stone-700 transition">
+        + Add leave / replacement
+      </button>
       <button onclick="exportMonth()"
         class="text-xs font-medium text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-400 transition">
         Export
@@ -108,7 +109,7 @@
         class="text-xs font-medium text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-400 transition">
         Today
       </button>
-      <button onclick="clearMonth()"
+      <button id="clear-month-btn" onclick="clearMonth()"
         class="text-xs font-medium text-red-400 dark:text-red-500 hover:text-red-600 dark:hover:text-red-400 transition">
         Clear month
       </button>
@@ -123,20 +124,18 @@
       <div id="notes-list" class="space-y-1.5"></div>
     </div>
 
+    <div id="coverage-section" class="mt-5 hidden">
+      <h3 class="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-widest mb-3">Coverage</h3>
+      <div id="coverage-list" class="space-y-1.5"></div>
+    </div>
+
   </div>
 
   <!-- Floating bulk action bar -->
   <div id="bulk-bar"
     class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl shadow-xl dark:shadow-stone-950 px-4 py-3">
     <span id="bulk-count" class="text-sm font-medium text-stone-500 dark:text-stone-400 mr-1"></span>
-    <button id="bulk-btn-a" onclick="bulkAssign('A')"
-      class="px-4 py-2 rounded-xl bg-violet-400 hover:bg-violet-500 dark:bg-violet-500 dark:hover:bg-violet-600 text-white font-bold text-sm transition shadow-sm shadow-violet-200 dark:shadow-violet-900">
-      1
-    </button>
-    <button id="bulk-btn-b" onclick="bulkAssign('B')"
-      class="px-4 py-2 rounded-xl bg-orange-400 hover:bg-orange-500 dark:bg-orange-500 dark:hover:bg-orange-600 text-white font-bold text-sm transition shadow-sm shadow-orange-200 dark:shadow-orange-900">
-      2
-    </button>
+    <div id="bulk-person-buttons" class="flex items-center gap-2 max-w-[60vw] overflow-x-auto"></div>
     <button onclick="bulkClear()"
       class="px-4 py-2 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 text-sm hover:bg-stone-50 dark:hover:bg-stone-800 transition">
       Remove
@@ -151,22 +150,31 @@
   <div id="modal"
     class="hidden fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4"
     onclick="handleOverlayClick(event)">
-    <div class="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl shadow-2xl dark:shadow-stone-950 w-full max-w-xs p-6">
-      <p class="text-center text-stone-400 dark:text-stone-500 text-xs uppercase tracking-widest mb-1">Assign shift</p>
+    <div class="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl shadow-2xl dark:shadow-stone-950 w-full max-w-xs max-h-[90vh] overflow-y-auto p-6">
+      <p id="modal-eyebrow" class="text-center text-stone-400 dark:text-stone-500 text-xs uppercase tracking-widest mb-1">Assign shift</p>
       <h3 id="modal-date-label" class="text-center text-lg font-bold text-stone-800 dark:text-stone-100 mb-6"></h3>
-      <div class="flex gap-3 mb-3">
-        <button id="modal-btn-a" onclick="assign('A')"
-          class="flex-1 py-4 rounded-xl bg-violet-400 hover:bg-violet-500 dark:bg-violet-500 dark:hover:bg-violet-600 active:bg-violet-600 text-white font-extrabold text-xl transition shadow-sm shadow-violet-200 dark:shadow-violet-900">
-          1
-        </button>
-        <button id="modal-btn-b" onclick="assign('B')"
-          class="flex-1 py-4 rounded-xl bg-orange-400 hover:bg-orange-500 dark:bg-orange-500 dark:hover:bg-orange-600 active:bg-orange-600 text-white font-extrabold text-xl transition shadow-sm shadow-orange-200 dark:shadow-orange-900">
-          2
-        </button>
-      </div>
+      <div id="manual-date-controls">
+      <div id="modal-person-buttons" class="grid grid-cols-2 gap-2 mb-3 max-h-48 overflow-y-auto"></div>
       <div class="mb-3">
         <input id="modal-note" type="text" maxlength="80" placeholder="Add a note… (optional)"
           class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-200 dark:focus:ring-violet-900 placeholder:text-stone-300 dark:placeholder:text-stone-600 transition" />
+      </div>
+      </div>
+      <div id="rotation-date-details" class="hidden space-y-3 mb-4 text-sm">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="rounded-xl bg-stone-50 dark:bg-stone-800 p-3">
+            <p class="text-[10px] uppercase tracking-wider text-stone-400 mb-1">Scheduled</p>
+            <p id="detail-scheduled" class="font-semibold text-stone-700 dark:text-stone-200"></p>
+          </div>
+          <div class="rounded-xl bg-stone-50 dark:bg-stone-800 p-3">
+            <p class="text-[10px] uppercase tracking-wider text-stone-400 mb-1">Actual</p>
+            <p id="detail-actual" class="font-semibold text-stone-700 dark:text-stone-200"></p>
+          </div>
+        </div>
+        <p id="detail-interval" class="text-xs text-stone-500 dark:text-stone-400"></p>
+        <p id="detail-reason" class="hidden text-xs rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 px-3 py-2"></p>
+        <button onclick="openExceptionModal()" class="w-full py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 dark:bg-stone-200 dark:hover:bg-stone-300 text-white dark:text-stone-900 font-semibold text-sm transition">Add exception</button>
+        <button id="detail-remove-exception" onclick="removeCurrentException()" class="hidden w-full py-2 rounded-xl border border-red-200 dark:border-red-900 text-red-500 dark:text-red-400 text-sm">Remove this exception</button>
       </div>
       <div class="flex gap-2">
         <button id="clear-btn" onclick="clearAssignment()"
@@ -185,19 +193,44 @@
   <div id="settings-modal"
     class="hidden fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4"
     onclick="if(event.target===this)closeSettings()">
-    <div class="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl shadow-2xl dark:shadow-stone-950 w-full max-w-xs p-6">
+    <div class="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl shadow-2xl dark:shadow-stone-950 w-full max-w-xs max-h-[90vh] overflow-y-auto p-6">
       <p class="text-center text-stone-400 dark:text-stone-500 text-xs uppercase tracking-widest mb-1">Settings</p>
-      <h3 class="text-center text-lg font-bold text-stone-800 dark:text-stone-100 mb-6">Customize Names</h3>
+      <h3 id="settings-title" class="text-center text-lg font-bold text-stone-800 dark:text-stone-100 mb-6">Schedule Settings</h3>
       <div class="space-y-4 mb-6">
         <div>
-          <label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Person 1 (violet)</label>
-          <input id="settings-name-a" type="text" maxlength="20"
-            class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-200 dark:focus:ring-violet-900 placeholder:text-stone-300 dark:placeholder:text-stone-600 transition" />
+          <label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Schedule mode</label>
+          <select id="settings-mode" onchange="syncSettingsMode()" class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-700">
+            <option value="manual">Manual — assign shifts yourself</option>
+            <option value="rotation">Rotation — repeat a fixed pattern</option>
+          </select>
         </div>
         <div>
-          <label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Person 2 (orange)</label>
-          <input id="settings-name-b" type="text" maxlength="20"
-            class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 placeholder:text-stone-300 dark:placeholder:text-stone-600 transition" />
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs font-medium text-stone-500 dark:text-stone-400">People and rotation order</label>
+            <button type="button" onclick="addSettingsPerson()" class="text-xs font-semibold text-violet-600 dark:text-violet-400">+ Add person</button>
+          </div>
+          <div id="people-editor" class="space-y-2"></div>
+          <p class="text-[11px] text-stone-400 dark:text-stone-600 mt-2">Use the arrows to set the round-robin order. At least two people are required.</p>
+        </div>
+        <div id="rotation-settings" class="hidden space-y-4 border-t border-stone-100 dark:border-stone-800 pt-4">
+          <div>
+            <label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Starting date and time</label>
+            <input id="settings-anchor" type="datetime-local" class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Starting person</label>
+              <select id="settings-anchor-person" class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2"></select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Shift days</label>
+              <input id="settings-duration" type="number" min="1" step="1" value="2" class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Handover label</label>
+            <input id="settings-handover-label" type="text" maxlength="30" value="Handover" placeholder="e.g. Zuhur" class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2" />
+          </div>
         </div>
       </div>
       <div class="flex gap-2">
@@ -213,27 +246,82 @@
     </div>
   </div>
 
+  <!-- Exception modal -->
+  <div id="exception-modal" class="hidden fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] px-4" onclick="if(event.target===this)closeExceptionModal()">
+    <div class="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl shadow-2xl w-full max-w-xs max-h-[90vh] overflow-y-auto p-6">
+      <p class="text-center text-stone-400 dark:text-stone-500 text-xs uppercase tracking-widest mb-1">Rotation override</p>
+      <h3 class="text-center text-lg font-bold text-stone-800 dark:text-stone-100 mb-6">Add Exception</h3>
+      <div class="space-y-4 mb-6">
+        <div><label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Unavailable person</label><select id="exception-unavailable" class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2"></select></div>
+        <div><label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Replacement</label><select id="exception-replacement" class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2"></select></div>
+        <div><label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Start</label><input id="exception-start" type="datetime-local" class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2" /></div>
+        <div><label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">End</label><input id="exception-end" type="datetime-local" class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2" /></div>
+        <div><label class="block text-xs font-medium text-stone-500 dark:text-stone-400 mb-1.5">Reason</label><input id="exception-reason" type="text" maxlength="80" placeholder="Leave, appointment…" class="w-full text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2" /></div>
+      </div>
+      <div class="flex gap-2"><button onclick="saveException()" class="flex-1 py-2.5 rounded-xl bg-stone-800 dark:bg-stone-200 text-white dark:text-stone-900 font-semibold text-sm">Save</button><button onclick="closeExceptionModal()" class="flex-1 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 text-sm">Cancel</button></div>
+    </div>
+  </div>
+
+  <script src="./shiftly-core.js"></script>
   <script>
-    const STORAGE_KEY = 'shiftly_data';
-    const CONFIG_KEY = 'shiftly_config';
+    const SCHEDULE_KEY = 'shiftly_schedule_v2';
+    const LEGACY_DATA_KEY = 'shiftly_data';
+    const LEGACY_CONFIG_KEY = 'shiftly_config';
     const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const COLOR_STYLES = {
+      violet: { solid: 'bg-violet-500 hover:bg-violet-600', soft: 'bg-violet-50 dark:bg-violet-950/50 border-violet-200 dark:border-violet-900 text-violet-700 dark:text-violet-300', dot: 'bg-violet-500' },
+      orange: { solid: 'bg-orange-500 hover:bg-orange-600', soft: 'bg-orange-50 dark:bg-orange-950/50 border-orange-200 dark:border-orange-900 text-orange-700 dark:text-orange-300', dot: 'bg-orange-500' },
+      emerald: { solid: 'bg-emerald-500 hover:bg-emerald-600', soft: 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-500' },
+      sky: { solid: 'bg-sky-500 hover:bg-sky-600', soft: 'bg-sky-50 dark:bg-sky-950/50 border-sky-200 dark:border-sky-900 text-sky-700 dark:text-sky-300', dot: 'bg-sky-500' },
+      rose: { solid: 'bg-rose-500 hover:bg-rose-600', soft: 'bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300', dot: 'bg-rose-500' },
+      amber: { solid: 'bg-amber-500 hover:bg-amber-600', soft: 'bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-300', dot: 'bg-amber-500' },
+      indigo: { solid: 'bg-indigo-500 hover:bg-indigo-600', soft: 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-900 text-indigo-700 dark:text-indigo-300', dot: 'bg-indigo-500' },
+      teal: { solid: 'bg-teal-500 hover:bg-teal-600', soft: 'bg-teal-50 dark:bg-teal-950/50 border-teal-200 dark:border-teal-900 text-teal-700 dark:text-teal-300', dot: 'bg-teal-500' }
+    };
 
-    function loadConfig() {
-      return JSON.parse(localStorage.getItem(CONFIG_KEY) || '{"nameA":"1","nameB":"2"}');
+    let isFirstRun = !localStorage.getItem(SCHEDULE_KEY) && !localStorage.getItem(LEGACY_DATA_KEY) && !localStorage.getItem(LEGACY_CONFIG_KEY);
+
+    function safeParse(value, fallback) {
+      try { return value ? JSON.parse(value) : fallback; }
+      catch { return fallback; }
     }
 
-    function saveConfig(cfg) {
-      localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+    function loadSchedule() {
+      const saved = safeParse(localStorage.getItem(SCHEDULE_KEY), null);
+      if (saved?.version === ShiftlyCore.VERSION) return ShiftlyCore.normalizeSchedule(saved);
+
+      const legacyData = safeParse(localStorage.getItem(LEGACY_DATA_KEY), {});
+      const legacyConfig = safeParse(localStorage.getItem(LEGACY_CONFIG_KEY), { nameA: '1', nameB: '2' });
+      const migrated = ShiftlyCore.createManualSchedule(legacyData, legacyConfig);
+      saveSchedule(migrated);
+      return migrated;
     }
 
-    function getNames() {
-      const cfg = loadConfig();
-      return { A: cfg.nameA || '1', B: cfg.nameB || '2' };
+    function saveSchedule(schedule) {
+      localStorage.setItem(SCHEDULE_KEY, JSON.stringify(ShiftlyCore.normalizeSchedule(schedule)));
+    }
+
+    function personName(schedule, personId) {
+      return schedule.people.find(person => person.id === personId)?.name || 'Unassigned';
+    }
+
+    function personById(schedule, personId) {
+      return schedule.people.find(person => person.id === personId) || null;
+    }
+
+    function colorStyle(person) {
+      return COLOR_STYLES[person?.color] || COLOR_STYLES.violet;
+    }
+
+    function initials(name) {
+      const parts = String(name || '?').trim().split(/\s+/);
+      return parts.length === 1 ? parts[0].slice(0, 3) : parts.slice(0, 2).map(part => part[0]).join('');
     }
 
     let currentYear, currentMonth;
     let singleSelectedDate = null;
+    let settingsPeople = [];
 
     // Multi-select state
     let multiMode = false;
@@ -256,33 +344,41 @@
     // ─── Storage ──────────────────────────────────────────────────────────────
 
     function loadData() {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      return loadSchedule().manual?.assignments || {};
     }
 
     function saveData(data) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      const schedule = loadSchedule();
+      schedule.manual = { assignments: data };
+      saveSchedule(schedule);
     }
 
     function toISO(year, month, day) {
       return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     }
 
-    // Supports legacy string values ("A"/"B") and object values ({ person, note })
+    // Version 2 values are person IDs or { personId, note }.
     function getEntry(raw) {
-      if (!raw) return { person: null, note: '' };
-      if (typeof raw === 'string') return { person: raw, note: '' };
-      return { person: raw.person || null, note: raw.note || '' };
+      if (!raw) return { personId: null, note: '' };
+      if (typeof raw === 'string') return { personId: raw, note: '' };
+      return { personId: raw.personId || null, note: raw.note || '' };
     }
 
-    function buildEntry(person, note) {
-      return note.trim() ? { person, note: note.trim() } : person;
+    function buildEntry(personId, note) {
+      return note.trim() ? { personId, note: note.trim() } : personId;
     }
 
     // ─── Render ───────────────────────────────────────────────────────────────
 
     function renderCalendar() {
-      const data = loadData();
+      const schedule = loadSchedule();
       document.getElementById('month-label').textContent = `${MONTH_NAMES[currentMonth]} ${currentYear}`;
+      document.getElementById('schedule-subtitle').textContent = schedule.mode === 'rotation'
+        ? `Rotation · Every ${schedule.rotation.durationDays} day${schedule.rotation.durationDays === 1 ? '' : 's'}`
+        : 'Manual schedule';
+      document.getElementById('clear-month-btn').classList.toggle('hidden', schedule.mode !== 'manual');
+      document.getElementById('add-exception-action').classList.toggle('hidden', schedule.mode !== 'rotation');
+      updateLegendAndStatus(schedule);
 
       const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
       const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -297,20 +393,19 @@
 
       for (let d = 1; d <= daysInMonth; d++) {
         const iso = toISO(currentYear, currentMonth, d);
-        const { person, note } = getEntry(data[iso]);
+        const resolved = ShiftlyCore.resolveCalendarDate(schedule, iso);
+        const person = personById(schedule, resolved.actualPersonId);
+        const note = resolved.note || '';
         const isToday = isCurrentMonth && today.getDate() === d;
         const isSelected = multiDates.has(iso);
         const hasNote = note.length > 0;
 
         let bg, inner;
-        const names = getNames();
 
-        if (person === 'A') {
-          bg = 'bg-violet-400 hover:bg-violet-500 dark:bg-violet-500 dark:hover:bg-violet-600 text-white shadow-sm shadow-violet-200 dark:shadow-violet-950';
-          inner = `<span class="text-xs font-bold leading-none">${d}</span><span class="text-white/75 text-[10px] font-semibold leading-none">${names.A}</span>`;
-        } else if (person === 'B') {
-          bg = 'bg-orange-400 hover:bg-orange-500 dark:bg-orange-500 dark:hover:bg-orange-600 text-white shadow-sm shadow-orange-200 dark:shadow-orange-950';
-          inner = `<span class="text-xs font-bold leading-none">${d}</span><span class="text-white/75 text-[10px] font-semibold leading-none">${names.B}</span>`;
+        if (person) {
+          const style = colorStyle(person);
+          bg = `${style.soft} border hover:brightness-95 dark:hover:brightness-125`;
+          inner = `<span class="text-xs font-bold leading-none">${d}</span><span class="text-[10px] font-semibold leading-none max-w-full truncate px-1">${escapeHtml(initials(person.name))}</span>`;
         } else if (isToday) {
           bg = 'bg-stone-800 hover:bg-stone-700 dark:bg-stone-200 dark:hover:bg-stone-300 text-white dark:text-stone-900';
           inner = `<span class="text-xs font-bold">${d}</span>`;
@@ -319,67 +414,121 @@
           inner = `<span class="text-xs font-medium">${d}</span>`;
         }
 
-        const todayBadge = isToday ? '<span class="absolute top-0.5 right-0.5 text-[8px] leading-none opacity-60">★</span>' : '';
+        const todayBadge = isToday ? '<span class="absolute top-1 right-1 text-[7px] uppercase font-bold opacity-70">Now</span>' : '';
 
         const ring = isSelected ? 'ring-2 ring-offset-1 ring-stone-700 dark:ring-stone-300' : '';
 
         const noteDot = hasNote
-          ? `<span class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${person ? 'bg-white/60' : 'bg-stone-400 dark:bg-stone-500'}"></span>`
+          ? `<span class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-stone-500 dark:bg-stone-400"></span>`
+          : '';
+
+        const overrideBadge = resolved.isOverride
+          ? `<span class="absolute top-1 left-1 rounded bg-amber-500 text-white text-[6px] font-bold leading-none px-1 py-0.5" title="Scheduled: ${escapeAttr(personName(schedule, resolved.scheduledPersonId))}; covered by ${escapeAttr(personName(schedule, resolved.actualPersonId))}">COVER</span>`
           : '';
 
         html += `
-          <div class="relative aspect-square flex flex-col items-center justify-center gap-0.5 rounded-xl cursor-pointer transition select-none ${bg} ${ring}"
+          <div title="${d} ${MONTH_NAMES[currentMonth]} — ${escapeAttr(person?.name || 'Unassigned')}" class="relative aspect-square flex flex-col items-center justify-center gap-0.5 rounded-xl cursor-pointer transition select-none ${bg} ${ring}"
             onclick="handleDayClick(event, '${iso}', ${d})">
             ${inner}
             ${noteDot}
             ${todayBadge}
+            ${overrideBadge}
           </div>`;
       }
 
       document.getElementById('calendar-grid').innerHTML = html;
-      updateSummary(data);
+      updateSummary(schedule);
       updateNotes();
+      updateCoverage(schedule);
       updateBulkBar();
     }
 
-    function updateSummary(data) {
-      data = data || loadData();
-      const prefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-`;
-      let a = 0, b = 0;
-      for (const [key, raw] of Object.entries(data)) {
-        if (!key.startsWith(prefix)) continue;
-        const { person } = getEntry(raw);
-        if (person === 'A') a++;
-        if (person === 'B') b++;
-      }
-      const names = getNames();
-      document.getElementById('name-label-a').textContent = names.A;
-      document.getElementById('name-label-b').textContent = names.B;
-      document.getElementById('count-a').textContent = a;
-      document.getElementById('count-b').textContent = b;
+    function updateLegendAndStatus(schedule) {
+      document.getElementById('people-legend').innerHTML = schedule.people.map(person => {
+        const style = colorStyle(person);
+        return `<span class="inline-flex items-center gap-1.5 text-[11px] text-stone-600 dark:text-stone-400"><span class="w-2 h-2 rounded-full ${style.dot}"></span>${escapeHtml(person.name)}</span>`;
+      }).join('');
 
-      const diff = a - b;
+      const status = document.getElementById('current-status');
+      if (schedule.mode !== 'rotation') {
+        status.classList.add('hidden');
+        return;
+      }
+      const now = new Date();
+      const assignment = ShiftlyCore.getActualAssignment(schedule, now);
+      const active = personById(schedule, assignment.actualPersonId);
+      const style = colorStyle(active);
+      const anchor = ShiftlyCore.parseLocalDateTime(schedule.rotation.anchor);
+      status.classList.remove('hidden');
+      status.innerHTML = `
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-[10px] uppercase tracking-widest text-stone-400 dark:text-stone-500 mb-1">On duty now</p>
+            <p class="flex items-center gap-2 text-base font-bold text-stone-800 dark:text-stone-100"><span class="w-2.5 h-2.5 rounded-full ${style.dot}"></span>${escapeHtml(active?.name || 'Unassigned')}</p>
+            <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">Until ${formatIntervalDate(assignment.end)}, ${escapeHtml(schedule.rotation.handover.label)}</p>
+          </div>
+          <button onclick="openSettings()" class="text-xs font-medium text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-100">Edit rotation</button>
+        </div>
+        <p class="mt-3 pt-3 border-t border-stone-100 dark:border-stone-800 text-[11px] text-stone-400 dark:text-stone-500">Every ${schedule.rotation.durationDays} day${schedule.rotation.durationDays === 1 ? '' : 's'} · ${escapeHtml(schedule.rotation.handover.label)} at ${schedule.rotation.handover.time} · Started ${formatIntervalDate(anchor)} with ${escapeHtml(personName(schedule, schedule.rotation.anchorPersonId))}</p>`;
+    }
+
+    function updateSummary(schedule = loadSchedule()) {
+      const counts = Object.fromEntries(schedule.people.map(person => [person.id, 0]));
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const resolved = ShiftlyCore.resolveCalendarDate(schedule, toISO(currentYear, currentMonth, day));
+        if (resolved.actualPersonId in counts) counts[resolved.actualPersonId]++;
+      }
+      document.getElementById('summary-list').innerHTML = schedule.people.map(person => {
+        const style = colorStyle(person);
+        return `<div class="inline-flex items-center gap-1.5 border rounded-xl px-2.5 py-1.5 ${style.soft}"><span class="w-2 h-2 rounded-full ${style.dot}"></span><span class="text-xs font-semibold">${escapeHtml(person.name)} · ${counts[person.id]} days</span></div>`;
+      }).join('');
+
+      const values = Object.values(counts);
+      const max = Math.max(...values);
+      const min = Math.min(...values);
       const bal = document.getElementById('balance-text');
-      if (diff > 0) bal.textContent = `+${diff}: ${names.A}`;
-      else if (diff < 0) bal.textContent = `+${Math.abs(diff)}: ${names.B}`;
-      else bal.textContent = `${names.A} & ${names.B} Equal`;
+      if (max === min) bal.textContent = `Actual duty this month · equal at ${max} days`;
+      else {
+        const leaders = schedule.people.filter(person => counts[person.id] === max).map(person => person.name).join(', ');
+        bal.textContent = `Actual duty this month · ${leaders} leads by ${max - min} day${max - min === 1 ? '' : 's'}`;
+      }
+    }
+
+    function updateCoverage(schedule = loadSchedule()) {
+      const section = document.getElementById('coverage-section');
+      const list = document.getElementById('coverage-list');
+      if (schedule.mode !== 'rotation') {
+        section.classList.add('hidden');
+        return;
+      }
+      const entries = ShiftlyCore.calculateCoverage(schedule);
+      section.classList.toggle('hidden', entries.length === 0);
+      list.innerHTML = entries.map(entry => {
+        const amount = Number.isInteger(entry.shiftEquivalent) ? entry.shiftEquivalent : entry.shiftEquivalent.toFixed(2);
+        return `<div class="px-3 py-2 rounded-xl bg-white dark:bg-stone-800/50 border border-stone-100 dark:border-stone-800 text-sm text-stone-600 dark:text-stone-300"><span class="font-semibold">${escapeHtml(personName(schedule, entry.replacementPersonId))}</span> covered ${escapeHtml(personName(schedule, entry.unavailablePersonId))} · ${amount} shift${Number(amount) === 1 ? '' : 's'}</div>`;
+      }).join('');
     }
 
     function updateNotes() {
+      if (loadSchedule().mode !== 'manual') {
+        document.getElementById('notes-section').classList.add('hidden');
+        return;
+      }
       const data = loadData();
       const prefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-`;
       const section = document.getElementById('notes-section');
       const list = document.getElementById('notes-list');
       const count = document.getElementById('notes-count');
-      const names = getNames();
+      const schedule = loadSchedule();
       const entries = [];
 
       for (const [key, raw] of Object.entries(data)) {
         if (!key.startsWith(prefix)) continue;
-        const { person, note } = getEntry(raw);
+        const { personId, note } = getEntry(raw);
         if (!note) continue;
         const day = parseInt(key.slice(-2), 10);
-        entries.push({ day, person, note, iso: key });
+        entries.push({ day, personId, note, iso: key });
       }
 
       entries.sort((a, b) => a.day - b.day);
@@ -392,11 +541,9 @@
       section.classList.remove('hidden');
       count.textContent = `(${entries.length})`;
       list.innerHTML = entries.map(e => {
-        const isA = e.person === 'A';
-        const label = isA ? names.A : names.B;
-        const inner = isA
-          ? `<span class="inline-flex items-center gap-1 text-xs font-semibold text-violet-700 dark:text-violet-300"><span class="w-1.5 h-1.5 rounded-full bg-violet-400 dark:bg-violet-500"></span>${label}</span>`
-          : `<span class="inline-flex items-center gap-1 text-xs font-semibold text-orange-700 dark:text-orange-300"><span class="w-1.5 h-1.5 rounded-full bg-orange-400 dark:bg-orange-500"></span>${label}</span>`;
+        const person = personById(schedule, e.personId);
+        const style = colorStyle(person);
+        const inner = `<span class="inline-flex items-center gap-1 text-xs font-semibold"><span class="w-1.5 h-1.5 rounded-full ${style.dot}"></span>${escapeHtml(person?.name || 'Unassigned')}</span>`;
         return `
           <div class="flex items-start gap-2.5 px-3 py-2 rounded-xl bg-white dark:bg-stone-800/50 border border-stone-100 dark:border-stone-800">
             <span class="shrink-0 text-xs font-semibold text-stone-500 dark:text-stone-400 w-6 self-center">${e.day}</span>
@@ -414,14 +561,26 @@
       return div.innerHTML;
     }
 
+    function escapeAttr(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
     function updateBulkBar() {
       const bar = document.getElementById('bulk-bar');
       const hint = document.getElementById('select-hint');
+      if (loadSchedule().mode === 'rotation') {
+        bar.classList.add('hidden');
+        hint.textContent = 'Select a date to view its shift or add an exception';
+        return;
+      }
       if (multiMode && multiDates.size > 0) {
         const n = multiDates.size;
         document.getElementById('bulk-count').textContent = `${n} date${n > 1 ? 's' : ''}`;
-        document.getElementById('bulk-btn-a').textContent = getNames().A;
-        document.getElementById('bulk-btn-b').textContent = getNames().B;
+        const schedule = loadSchedule();
+        document.getElementById('bulk-person-buttons').innerHTML = schedule.people.map(person => {
+          const style = colorStyle(person);
+          return `<button onclick="bulkAssign('${person.id}')" class="shrink-0 px-3 py-2 rounded-xl ${style.solid} text-white font-bold text-sm">${escapeHtml(person.name)}</button>`;
+        }).join('');
         bar.classList.remove('hidden');
         hint.textContent = 'Click dates to toggle · Shift+click to extend range · Esc to cancel';
       } else {
@@ -433,7 +592,7 @@
     // ─── Click handler ────────────────────────────────────────────────────────
 
     function handleDayClick(e, iso, day) {
-      if (e.shiftKey) {
+      if (e.shiftKey && loadSchedule().mode === 'manual') {
         e.preventDefault();
         if (!multiMode) {
           multiMode = true;
@@ -472,14 +631,39 @@
       singleSelectedDate = iso;
       document.getElementById('modal-date-label').textContent =
         `${MONTH_SHORT[currentMonth]} ${day}, ${currentYear}`;
-      const data = loadData();
-      const { person, note } = getEntry(data[iso]);
-      document.getElementById('modal-btn-a').textContent = getNames().A;
-      document.getElementById('modal-btn-b').textContent = getNames().B;
-      document.getElementById('modal-note').value = note;
-      document.getElementById('clear-btn').classList.toggle('hidden', !person);
+      const schedule = loadSchedule();
+      const isRotation = schedule.mode === 'rotation';
+      document.getElementById('manual-date-controls').classList.toggle('hidden', isRotation);
+      document.getElementById('rotation-date-details').classList.toggle('hidden', !isRotation);
+      document.getElementById('modal-eyebrow').textContent = isRotation ? 'Shift details' : 'Assign shift';
+      document.getElementById('clear-btn').classList.toggle('hidden', isRotation);
+
+      if (isRotation) {
+        const resolved = ShiftlyCore.resolveCalendarDate(schedule, iso);
+        document.getElementById('detail-scheduled').textContent = personName(schedule, resolved.scheduledPersonId);
+        document.getElementById('detail-actual').textContent = personName(schedule, resolved.actualPersonId);
+        const label = schedule.rotation.handover.label || 'Handover';
+        document.getElementById('detail-interval').textContent = `${formatIntervalDate(resolved.start)} ${label} → ${formatIntervalDate(resolved.end)} ${label}`;
+        const reason = document.getElementById('detail-reason');
+        reason.textContent = resolved.reason ? `Reason: ${resolved.reason}` : '';
+        reason.classList.toggle('hidden', !resolved.reason);
+        document.getElementById('detail-remove-exception').classList.toggle('hidden', !resolved.exceptionId);
+      } else {
+        const data = loadData();
+        const { personId, note } = getEntry(data[iso]);
+        document.getElementById('modal-person-buttons').innerHTML = schedule.people.map(person => {
+          const style = colorStyle(person);
+          return `<button onclick="assign('${person.id}')" class="py-3 px-2 rounded-xl ${style.solid} text-white font-bold text-sm transition">${escapeHtml(person.name)}</button>`;
+        }).join('');
+        document.getElementById('modal-note').value = note;
+        document.getElementById('clear-btn').classList.toggle('hidden', !personId);
+      }
       document.getElementById('modal').classList.remove('hidden');
-      setTimeout(() => document.getElementById('modal-note').focus(), 50);
+      if (!isRotation) setTimeout(() => document.getElementById('modal-note').focus(), 50);
+    }
+
+    function formatIntervalDate(date) {
+      return `${date.getDate()} ${MONTH_SHORT[date.getMonth()]} ${date.getFullYear()}`;
     }
 
     function closeModal() {
@@ -492,11 +676,11 @@
       if (e.target === document.getElementById('modal')) closeModal();
     }
 
-    function assign(person) {
+    function assign(personId) {
       if (!singleSelectedDate) return;
       const note = document.getElementById('modal-note').value;
       const data = loadData();
-      data[singleSelectedDate] = buildEntry(person, note);
+      data[singleSelectedDate] = buildEntry(personId, note);
       saveData(data);
       closeModal();
       renderCalendar();
@@ -513,10 +697,10 @@
 
     // ─── Bulk actions ─────────────────────────────────────────────────────────
 
-    function bulkAssign(person) {
+    function bulkAssign(personId) {
       if (multiDates.size === 0) return;
       const data = loadData();
-      for (const iso of multiDates) data[iso] = person;
+      for (const iso of multiDates) data[iso] = personId;
       saveData(data);
       exitMultiSelect();
     }
@@ -539,21 +723,21 @@
     // ─── Actions ───────────────────────────────────────────────────────────────
 
     function exportMonth() {
-      const data = loadData();
-      const prefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-`;
-      const names = getNames();
-      let a = 0, b = 0;
-      const lines = [`${MONTH_NAMES[currentMonth]} ${currentYear}`];
+      const schedule = loadSchedule();
+      const counts = Object.fromEntries(schedule.people.map(person => [person.id, 0]));
+      const lines = [`${MONTH_NAMES[currentMonth]} ${currentYear} · ${schedule.mode === 'rotation' ? 'Rotation' : 'Manual'}`];
 
-      const days = Object.keys(data).filter(k => k.startsWith(prefix)).sort();
-      for (const iso of days) {
-        const { person, note } = getEntry(data[iso]);
-        const day = parseInt(iso.slice(-2), 10);
-        if (person === 'A') { a++; lines.push(`  ${day}  ${names.A}` + (note ? ` — ${note}` : '')); }
-        else if (person === 'B') { b++; lines.push(`  ${day}  ${names.B}` + (note ? ` — ${note}` : '')); }
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const resolved = ShiftlyCore.resolveCalendarDate(schedule, toISO(currentYear, currentMonth, day));
+        const person = personById(schedule, resolved.actualPersonId);
+        if (!person) continue;
+        counts[person.id]++;
+        const replacement = resolved.isOverride ? ` — covered for ${personName(schedule, resolved.scheduledPersonId)}` : '';
+        lines.push(`  ${day}  ${person.name}${replacement}${resolved.note ? ` — ${resolved.note}` : ''}`);
       }
 
-      lines.push(`\n${names.A}: ${a}  ${names.B}: ${b}`);
+      lines.push('', ...schedule.people.map(person => `${person.name}: ${counts[person.id]} days`));
       navigator.clipboard.writeText(lines.join('\n'));
     }
 
@@ -578,11 +762,74 @@
     // ─── Settings ─────────────────────────────────────────────────────────────
 
     function openSettings() {
-      const cfg = loadConfig();
-      document.getElementById('settings-name-a').value = cfg.nameA;
-      document.getElementById('settings-name-b').value = cfg.nameB;
+      const schedule = loadSchedule();
+      document.getElementById('settings-title').textContent = isFirstRun ? 'Create Schedule' : 'Schedule Settings';
+      document.getElementById('settings-mode').value = schedule.mode;
+      const order = schedule.mode === 'rotation' && schedule.rotation?.order
+        ? schedule.rotation.order
+        : schedule.people.map(person => person.id);
+      settingsPeople = order.map(id => schedule.people.find(person => person.id === id)).filter(Boolean).map(person => ({ ...person }));
+      renderPeopleEditor();
+      const today = new Date();
+      const defaultAnchor = `${toISO(today.getFullYear(), today.getMonth(), today.getDate())}T12:00`;
+      document.getElementById('settings-anchor').value = schedule.rotation?.anchor || defaultAnchor;
+      document.getElementById('settings-duration').value = schedule.rotation?.durationDays || 2;
+      document.getElementById('settings-handover-label').value = schedule.rotation?.handover?.label || 'Handover';
+      syncSettingsMode(schedule.rotation?.anchorPersonId || 'person-1');
       document.getElementById('settings-modal').classList.remove('hidden');
-      setTimeout(() => document.getElementById('settings-name-a').focus(), 50);
+      setTimeout(() => document.querySelector('#people-editor input')?.focus(), 50);
+    }
+
+    function syncSettingsMode(selectedPersonId) {
+      const isRotation = document.getElementById('settings-mode').value === 'rotation';
+      document.getElementById('rotation-settings').classList.toggle('hidden', !isRotation);
+      const select = document.getElementById('settings-anchor-person');
+      const current = selectedPersonId || select.value || settingsPeople[0]?.id;
+      select.innerHTML = settingsPeople.map((person, index) => `<option value="${person.id}">${escapeHtml(person.name.trim() || `Person ${index + 1}`)}</option>`).join('');
+      select.value = settingsPeople.some(person => person.id === current) ? current : settingsPeople[0]?.id;
+    }
+
+    function renderPeopleEditor() {
+      document.getElementById('people-editor').innerHTML = settingsPeople.map((person, index) => {
+        const style = colorStyle(person);
+        return `<div class="flex items-center gap-2" data-person-id="${person.id}">
+          <span class="shrink-0 w-3 h-3 rounded-full ${style.dot}"></span>
+          <input type="text" maxlength="30" value="${escapeAttr(person.name)}" oninput="updateSettingsPerson('${person.id}', this.value)" aria-label="Person ${index + 1} name" class="min-w-0 flex-1 text-sm text-stone-700 dark:text-stone-200 bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2" />
+          <button type="button" onclick="moveSettingsPerson(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="text-stone-400 disabled:opacity-20" aria-label="Move ${escapeAttr(person.name)} up">↑</button>
+          <button type="button" onclick="moveSettingsPerson(${index}, 1)" ${index === settingsPeople.length - 1 ? 'disabled' : ''} class="text-stone-400 disabled:opacity-20" aria-label="Move ${escapeAttr(person.name)} down">↓</button>
+          <button type="button" onclick="removeSettingsPerson('${person.id}')" ${settingsPeople.length <= 2 ? 'disabled' : ''} class="text-red-400 disabled:opacity-20" aria-label="Remove ${escapeAttr(person.name)}">×</button>
+        </div>`;
+      }).join('');
+      syncSettingsMode();
+    }
+
+    function updateSettingsPerson(personId, value) {
+      const person = settingsPeople.find(item => item.id === personId);
+      if (person) person.name = value;
+      syncSettingsMode();
+    }
+
+    function addSettingsPerson() {
+      const index = settingsPeople.length;
+      settingsPeople.push({
+        id: `person-${Date.now()}-${index + 1}`,
+        name: `Person ${index + 1}`,
+        color: ShiftlyCore.PERSON_COLORS[index % ShiftlyCore.PERSON_COLORS.length]
+      });
+      renderPeopleEditor();
+    }
+
+    function moveSettingsPerson(index, delta) {
+      const target = index + delta;
+      if (target < 0 || target >= settingsPeople.length) return;
+      [settingsPeople[index], settingsPeople[target]] = [settingsPeople[target], settingsPeople[index]];
+      renderPeopleEditor();
+    }
+
+    function removeSettingsPerson(personId) {
+      if (settingsPeople.length <= 2) return;
+      settingsPeople = settingsPeople.filter(person => person.id !== personId);
+      renderPeopleEditor();
     }
 
     function closeSettings() {
@@ -590,10 +837,124 @@
     }
 
     function saveSettings() {
-      const valA = document.getElementById('settings-name-a').value.trim() || '1';
-      const valB = document.getElementById('settings-name-b').value.trim() || '2';
-      saveConfig({ nameA: valA, nameB: valB });
+      const schedule = loadSchedule();
+      const mode = document.getElementById('settings-mode').value;
+      if (settingsPeople.length < 2 || settingsPeople.some(person => !person.name.trim())) {
+        alert('Add at least two people and give each person a name.');
+        return;
+      }
+      const duplicateName = settingsPeople.some((person, index) => settingsPeople.findIndex(item => item.name.trim().toLowerCase() === person.name.trim().toLowerCase()) !== index);
+      if (duplicateName) {
+        alert('Each person needs a unique name.');
+        return;
+      }
+      const retainedIds = new Set(settingsPeople.map(person => person.id));
+      const removedReferenced = schedule.people.some(person => !retainedIds.has(person.id) && (
+        Object.values(schedule.manual.assignments).some(raw => getEntry(raw).personId === person.id) ||
+        schedule.exceptions.some(exception => exception.unavailablePersonId === person.id || exception.replacementPersonId === person.id)
+      ));
+      if (removedReferenced) {
+        alert('A removed person is still used by an assignment or exception. Restore them before saving.');
+        return;
+      }
+      schedule.people = settingsPeople.map(person => ({ ...person, name: person.name.trim() }));
+      schedule.mode = mode;
+      if (mode === 'rotation') {
+        const anchor = document.getElementById('settings-anchor').value;
+        const durationDays = Number(document.getElementById('settings-duration').value);
+        if (!anchor || !Number.isInteger(durationDays) || durationDays < 1) {
+          alert('Choose a valid starting date and whole-number shift duration.');
+          return;
+        }
+        schedule.rotation = {
+          anchor,
+          anchorPersonId: document.getElementById('settings-anchor-person').value,
+          durationDays,
+          order: schedule.people.map(person => person.id),
+          handover: {
+            label: document.getElementById('settings-handover-label').value.trim() || 'Handover',
+            time: anchor.slice(11, 16)
+          }
+        };
+        schedule.exceptions ||= [];
+      }
+      saveSchedule(schedule);
+      isFirstRun = false;
       closeSettings();
+      renderCalendar();
+    }
+
+    // ─── Rotation exceptions ─────────────────────────────────────────────────
+
+    function openExceptionModalForCurrentView() {
+      const today = new Date();
+      const day = today.getFullYear() === currentYear && today.getMonth() === currentMonth ? today.getDate() : 1;
+      singleSelectedDate = toISO(currentYear, currentMonth, day);
+      openExceptionModal();
+    }
+
+    function openExceptionModal() {
+      const schedule = loadSchedule();
+      const resolved = ShiftlyCore.resolveCalendarDate(schedule, singleSelectedDate);
+      const options = schedule.people.map(person => `<option value="${person.id}">${escapeHtml(person.name)}</option>`).join('');
+      document.getElementById('exception-unavailable').innerHTML = options;
+      document.getElementById('exception-replacement').innerHTML = options;
+      document.getElementById('exception-unavailable').value = resolved.scheduledPersonId;
+      document.getElementById('exception-replacement').value = schedule.people.find(person => person.id !== resolved.scheduledPersonId)?.id;
+      document.getElementById('exception-start').value = ShiftlyCore.formatLocalDateTime(resolved.start);
+      document.getElementById('exception-end').value = ShiftlyCore.formatLocalDateTime(resolved.end);
+      document.getElementById('exception-reason').value = '';
+      closeModal();
+      document.getElementById('exception-modal').classList.remove('hidden');
+    }
+
+    function closeExceptionModal() {
+      document.getElementById('exception-modal').classList.add('hidden');
+    }
+
+    function saveException() {
+      const schedule = loadSchedule();
+      const start = document.getElementById('exception-start').value;
+      const end = document.getElementById('exception-end').value;
+      const unavailablePersonId = document.getElementById('exception-unavailable').value;
+      const replacementPersonId = document.getElementById('exception-replacement').value;
+      if (!start || !end || ShiftlyCore.parseLocalDateTime(end) <= ShiftlyCore.parseLocalDateTime(start)) {
+        alert('Exception end must be after its start.');
+        return;
+      }
+      if (unavailablePersonId === replacementPersonId) {
+        alert('Choose a different replacement person.');
+        return;
+      }
+      const overlaps = schedule.exceptions.some(exception =>
+        exception.unavailablePersonId === unavailablePersonId &&
+        ShiftlyCore.parseLocalDateTime(start) < ShiftlyCore.parseLocalDateTime(exception.end) &&
+        ShiftlyCore.parseLocalDateTime(end) > ShiftlyCore.parseLocalDateTime(exception.start)
+      );
+      if (overlaps) {
+        alert('This person already has an overlapping exception.');
+        return;
+      }
+      schedule.exceptions.push({
+        id: `exception-${Date.now()}`,
+        start,
+        end,
+        unavailablePersonId,
+        replacementPersonId,
+        reason: document.getElementById('exception-reason').value.trim()
+      });
+      saveSchedule(schedule);
+      closeExceptionModal();
+      renderCalendar();
+    }
+
+    function removeCurrentException() {
+      const schedule = loadSchedule();
+      const resolved = ShiftlyCore.resolveCalendarDate(schedule, singleSelectedDate);
+      if (!resolved.exceptionId || !confirm('Remove this exception?')) return;
+      schedule.exceptions = schedule.exceptions.filter(exception => exception.id !== resolved.exceptionId);
+      saveSchedule(schedule);
+      closeModal();
       renderCalendar();
     }
 
@@ -612,16 +973,18 @@
     // ─── Keyboard ─────────────────────────────────────────────────────────────
 
     document.addEventListener('keydown', e => {
-      const inInput = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+      const inInput = document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
       if (e.key === 'Escape') {
-        if (!document.getElementById('settings-modal').classList.contains('hidden')) {
+        if (!document.getElementById('exception-modal').classList.contains('hidden')) {
+          closeExceptionModal();
+        } else if (!document.getElementById('settings-modal').classList.contains('hidden')) {
           closeSettings();
         } else if (!document.getElementById('modal').classList.contains('hidden')) {
           closeModal();
         } else if (multiMode) {
           exitMultiSelect();
         }
-      } else if (!inInput && !multiMode && document.getElementById('modal').classList.contains('hidden') && document.getElementById('settings-modal').classList.contains('hidden')) {
+      } else if (!inInput && !multiMode && document.getElementById('modal').classList.contains('hidden') && document.getElementById('settings-modal').classList.contains('hidden') && document.getElementById('exception-modal').classList.contains('hidden')) {
         if (e.key === 'ArrowLeft') { e.preventDefault(); changeMonth(-1); }
         else if (e.key === 'ArrowRight') { e.preventDefault(); changeMonth(1); }
       }
@@ -637,6 +1000,7 @@
     syncThemeIcons(document.documentElement.classList.contains('dark'));
 
     renderCalendar();
+    if (isFirstRun) openSettings();
 
     // Swipe
     (function() {
