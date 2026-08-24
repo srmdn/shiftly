@@ -1,8 +1,8 @@
 # CURRENT STATE
 
-- Checkpoint: 2026-08-24T07:46:31+07:00
+- Checkpoint: 2026-08-24T08:01:00+07:00
 - Project root: `/Users/said/Developer/projects/github/shiftly`
-- Repository: `srmdn/shiftly`; branch: `main`; HEAD: `de55dff`
+- Repository: `srmdn/shiftly`; branch: `main`; hosted foundation committed
 - Goal: Build the hosted Shiftly foundation while preserving the working
   local-first application and its browser-data import path.
 - Status: Ready for next step. The hosted model is accepted, its initial SQLite
@@ -10,8 +10,7 @@
 
 ## Verified project state
 
-- The tracked baseline is still commit `de55dff`; current hosted work is
-  uncommitted.
+- The hosted foundation and this checkpoint are tracked on `main`.
 - The browser application remains local-first and continues to store version 2
   schedules in `shiftly_schedule_v2`.
 - The hosted backend is a separate Go module under `backend/` using Go 1.25 or
@@ -76,7 +75,7 @@
 - `.local/DECISIONS.md`, `.local/DATA-MODEL.md`, `.local/ROADMAP.md`,
   `.local/BACKLOG.md`, `.local/DEVLOG.md` — ignored private records updated
   for the accepted choices and completed foundation work.
-- `HANDOFF.md` — untracked portable checkpoint refreshed after implementation.
+- `HANDOFF.md` — tracked portable checkpoint refreshed after implementation.
 
 ## Unresolved problems
 
