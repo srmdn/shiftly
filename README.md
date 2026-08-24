@@ -54,16 +54,37 @@ Manual schedule and leaves both legacy keys untouched as recovery data.
 
 ## Tests
 
-Run the pure rotation-engine tests with:
+Run the browser-independent scheduling tests with:
 
 ```sh
 node --test
 ```
 
+The hosted backend foundation lives in `backend/`. Run its tests with:
+
+```sh
+cd backend
+go test ./...
+```
+
+Start the local API with:
+
+```sh
+cd backend
+go run ./cmd/server
+```
+
+The default API listens on `127.0.0.1:8080`, stores its development database at
+`backend/var/shiftly.db`, and exposes `GET /api/health`. Override the defaults
+with `SHIFTLY_LISTEN_ADDRESS`, `SHIFTLY_DATABASE_PATH`, and
+`SHIFTLY_SHUTDOWN_TIMEOUT_SECONDS`.
+
 ## Stack
 
-Static HTML and JavaScript. Tailwind CSS and htmx load from CDNs. Shiftly has no
-build step or backend.
+The working application remains static HTML and JavaScript. Tailwind CSS and
+htmx load from CDNs, and the browser continues to use `localStorage`. The hosted
+foundation adds a small Go API and SQLite migrations under `backend/`;
+the browser UI isn't connected to that API yet.
 
 ## License
 

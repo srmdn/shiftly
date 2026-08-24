@@ -13,3 +13,6 @@
 node_modules/
 coverage/
 *.log
+
+# Local hosted-backend runtime data
+backend/var/
